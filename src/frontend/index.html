@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLED 200 - Essay Feedback</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="app">
+    <div class="topbar">
+      <div class="topbar-logo">L</div>
+      <div class="topbar-breadcrumb">
+        LLED 200 <span>›</span> Descriptive Report <span>›</span>
+        <span class="current">AI Writing Feedback</span>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-badge badge-draft">Draft 1</span>
+        <span class="topbar-badge badge-engine">Rubric-Aligned</span>
+      </div>
+    </div>
+
+    <main class="app-shell">
+      <section class="input-panel" id="inputPanel">
+        <div class="submit-card">
+          <h1 class="submit-title">Submit Your Essay for AI Feedback</h1>
+          <p class="submit-subtitle">
+            Drag a file from your desktop into the drop zone below, or click to browse.
+          </p>
+
+          <div
+            id="dropZone"
+            class="dropzone"
+            tabindex="0"
+            role="button"
+            aria-label="Drop essay file here or click to browse"
+          >
+            <input
+              id="essayFile"
+              class="dropzone__input"
+              type="file"
+              accept=".txt,.md,.doc,.docx,.pdf"
+            />
+            <svg
+              class="dropzone__icon"
+              width="44"
+              height="44"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <div class="dropzone__title">Drag your essay here</div>
+            <div class="dropzone__hint">
+              or click to browse - .txt, .md, .doc, .docx, .pdf (max 10 MB)
+            </div>
+            <div class="dropzone__filename is-hidden" id="dropZoneFilename"></div>
+          </div>
+
+          <p id="submitStatus" class="submit-status" aria-live="polite"></p>
+
+          <div class="form-actions">
+            <button id="useSampleBtn" class="btn btn-secondary" type="button">
+              Use Sample Essay
+            </button>
+            <button id="submitBtn" class="btn btn-primary" type="button">
+              Get Feedback
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="viewer-shell is-hidden" id="viewerShell">
+        <div class="layout">
+          <section class="pdf-panel">
+            <article class="paper" id="paper">
+              <h2 class="essay-title">Essay with Annotations</h2>
+              <div class="essay-body" id="essayBody"></div>
+            </article>
+          </section>
+
+          <aside class="feedback-panel">
+            <div class="feedback-header">
+              <h2 class="feedback-title">AI Feedback</h2>
+              <div class="feedback-filter-group">
+                <span class="feedback-filter-label">Function</span>
+                <div class="feedback-filters" id="functionFilters">
+                  <button class="dim-pill is-active" data-filter="all" type="button">All</button>
+                  <button class="dim-pill" data-filter="content" type="button">Content</button>
+                  <button class="dim-pill" data-filter="organization" type="button">Organization</button>
+                  <button class="dim-pill" data-filter="interpersonal" type="button">Interpersonal</button>
+                </div>
+              </div>
+              <div class="feedback-filter-group">
+                <span class="feedback-filter-label">Level</span>
+                <div class="feedback-filters" id="levelFilters">
+                  <button class="dim-pill is-active" data-level="all" type="button">All</button>
+                  <button class="dim-pill" data-level="text" type="button">Text</button>
+                  <button class="dim-pill" data-level="section" type="button">Section</button>
+                  <button class="dim-pill" data-level="clause_word" type="button">Clause &amp; Word</button>
+                </div>
+              </div>
+              <div class="feedback-tabs" id="feedbackTabs">
+                <button class="fb-tab is-active" data-tab="annotations" type="button">Annotations</button>
+                <button class="fb-tab" data-tab="summary" type="button">Summary</button>
+              </div>
+            </div>
+            <div class="feedback-scroll" id="feedbackCards"></div>
+            <div class="feedback-footer">
+              <button class="btn btn-secondary" type="button" id="newSubmissionBtn">
+                Submit Another Essay
+              </button>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./dist/frontend/app.js"></script>
+  </body>
+</html>

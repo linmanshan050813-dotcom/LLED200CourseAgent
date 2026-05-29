@@ -1,0 +1,172 @@
+{
+  "submission_id": null,
+  "created_at": null,
+  "essay": {
+    "paragraphs": [
+      {
+        "id": "p1",
+        "text": "In modern consumer culture, brands do more than sell products - they sell identities. Starbucks has built its empire on a carefully crafted rhetorical strategy that positions the coffeehouse as a third place between home and work."
+      },
+      {
+        "id": "p2",
+        "text": "Starbucks's most visible rhetorical move is its proprietary naming system. Replacing small, medium, and large with Tall, Grande, and Venti creates a linguistic barrier to entry that paradoxically fosters belonging."
+      },
+      {
+        "id": "p3",
+        "text": "However, cracks in this rhetorical facade appear when corporate actions contradict communal messaging during labor disputes."
+      }
+    ]
+  },
+  "annotations": [
+    {
+      "id": 1,
+      "paragraph_id": "p1",
+      "char_start": 0,
+      "char_end": 84,
+      "function": "content",
+      "level": "text",
+      "issue_type": "Thesis is doing two jobs",
+      "severity": "high",
+      "evidence": {
+        "quote": "In modern consumer culture, brands do more than sell products - they sell identities.",
+        "reason": "The opening sets the stakes but does not announce the analytical claim of the essay."
+      },
+      "feedback": "The thesis frames a general cultural observation but does not preview the specific argument about Starbucks's rhetorical strategy.",
+      "revision_guidance": "Split the opening into a clear analytical claim followed by a brief preview of the argumentative arc.",
+      "citations": [
+        {
+          "type": "rubric",
+          "label": "Criterion 1: Thesis presents a clear, arguable analytical claim",
+          "url": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "paragraph_id": "p1",
+      "char_start": 87,
+      "char_end": 230,
+      "function": "organization",
+      "level": "text",
+      "issue_type": "Introduction does not preview structure",
+      "severity": "medium",
+      "evidence": {
+        "quote": "Starbucks has built its empire on a carefully crafted rhetorical strategy that positions the coffeehouse as a third place between home and work.",
+        "reason": "Readers cannot tell what the essay will examine next."
+      },
+      "feedback": "The introduction names the topic but does not signal the order of analysis (naming, design, digital discourse, counter-evidence).",
+      "revision_guidance": "Add one sentence that previews the body sections so readers can anticipate the structure.",
+      "citations": [
+        {
+          "type": "rubric",
+          "label": "Criterion 2: Introduction previews structure",
+          "url": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "paragraph_id": "p2",
+      "char_start": 0,
+      "char_end": 73,
+      "function": "content",
+      "level": "section",
+      "issue_type": "Topic sentence lacks evidence preview",
+      "severity": "medium",
+      "evidence": {
+        "quote": "Starbucks's most visible rhetorical move is its proprietary naming system.",
+        "reason": "The topic sentence asserts a claim without signaling the supporting evidence."
+      },
+      "feedback": "The paragraph announces the move but does not foreshadow the linguistic data that proves it.",
+      "revision_guidance": "Add a clause that points to the evidence type (e.g., naming conventions, customer interactions) before the example.",
+      "citations": [
+        {
+          "type": "course_material",
+          "label": "Week 5 Reading: Cameron - Verbal Hygiene",
+          "url": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "paragraph_id": "p2",
+      "char_start": 76,
+      "char_end": 213,
+      "function": "interpersonal",
+      "level": "section",
+      "issue_type": "Stance is too definitive",
+      "severity": "high",
+      "evidence": {
+        "quote": "Replacing small, medium, and large with Tall, Grande, and Venti creates a linguistic barrier to entry that paradoxically fosters belonging.",
+        "reason": "The claim is assertive without acknowledging it is an interpretation."
+      },
+      "feedback": "Strong analytical voice, but unhedged statements about audience effects can sound overdetermined for academic writing.",
+      "revision_guidance": "Introduce hedging (e.g., \"can be read as\", \"arguably\") to mark the interpretive nature of the claim.",
+      "citations": [
+        {
+          "type": "rubric",
+          "label": "Criterion 5: Maintains appropriate interpersonal stance",
+          "url": null
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "paragraph_id": "p3",
+      "char_start": 9,
+      "char_end": 41,
+      "function": "organization",
+      "level": "clause_word",
+      "issue_type": "Theme/New ordering is reversed",
+      "severity": "low",
+      "evidence": {
+        "quote": "cracks in this rhetorical facade",
+        "reason": "Known information should appear at the start of the clause."
+      },
+      "feedback": "The clause begins with new information (\"cracks\") before establishing the known referent (\"this facade\"), making the cohesion harder to follow.",
+      "revision_guidance": "Re-order so that the known concept comes first, then introduce the new evaluative term.",
+      "citations": [
+        {
+          "type": "course_material",
+          "label": "Week 7 Workshop: Theme/New patterns",
+          "url": null
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "paragraph_id": "p3",
+      "char_start": 47,
+      "char_end": 122,
+      "function": "interpersonal",
+      "level": "clause_word",
+      "issue_type": "Verb choice signals strong judgement",
+      "severity": "medium",
+      "evidence": {
+        "quote": "corporate actions contradict communal messaging",
+        "reason": "\"Contradict\" implies a categorical accusation."
+      },
+      "feedback": "The verb commits the writer to a strong evaluative stance without buffering language.",
+      "revision_guidance": "Soften the verb (e.g., \"appear to contradict\", \"are at odds with\") to maintain analytic tone.",
+      "citations": []
+    }
+  ],
+  "overall_feedback": {
+    "summary": "The draft develops a promising rhetorical analysis with confident voice, but needs sharper thesis framing, clearer signposting, and more calibrated stance markers to read as fully academic.",
+    "priority_issues": [
+      "Thesis is descriptive rather than analytical",
+      "Introduction does not preview the structure of the argument",
+      "Several claims are stated without hedging or evidence preview"
+    ],
+    "next_steps": [
+      "Rewrite the opening as a clear analytical claim plus complication",
+      "Add one sentence in P1 that previews the body order",
+      "Add hedging or interpretive cues in P2 and P3"
+    ],
+    "reflection_questions": [
+      "Where in your draft does an interpretation feel like a fact instead of a reading?",
+      "How would your reader anticipate the order of your analysis from your introduction?",
+      "Which scholarly source most directly supports your second body paragraph - and is it visible to the reader?"
+    ]
+  }
+}
