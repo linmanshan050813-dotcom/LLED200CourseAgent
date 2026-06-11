@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "concurrently \"tsc --watch -p tsconfig.frontend.json\" \"tsx watch src/backend/server.ts\"",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "build": "tsc -p tsconfig.frontend.json && tsc -p tsconfig.backend.json",
+    "start": "node dist/backend/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.backend.json"
   },
   "dependencies": {
     "@langchain/langgraph": "^1.3.2",

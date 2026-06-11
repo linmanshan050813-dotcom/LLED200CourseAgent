@@ -1,11 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import type { Paragraph } from "../../shared/schema.js";
 import { formatParagraphsForPrompt } from "./essayParser.js";
 
-const thisDir = dirname(fileURLToPath(import.meta.url));
-const promptPath = resolve(thisDir, "./prompts/prompt.md");
+const promptPath = resolve(process.cwd(), "src/backend/lib/prompts/prompt.md");
 
 export interface PromptMessage {
   role: "system" | "user";

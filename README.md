@@ -66,6 +66,18 @@ http://localhost:3101
 
 If port `3101` is already in use, change `PORT` in `.env` and restart `npm run dev`.
 
+## Production Build (local or cloud)
+
+```powershell
+npm install
+npm run build
+npm start
+```
+
+Open `http://localhost:3101` (or your configured `PORT`).
+
+For Render or Railway, use **Build Command** `npm install && npm run build` and **Start Command** `npm start`. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for platform notes (including why Vercel is not recommended without restructuring).
+
 ## Development Commands
 
 Run TypeScript checks:
