@@ -36,6 +36,42 @@ function setStatus(element: HTMLElement | null, text: string, kind: "info" | "er
   element.classList.toggle("is-error", kind === "error");
 }
 
+function setProgress(percent: number, label: string): void {
+  const progress = document.getElementById("submitProgress");
+  const bar = document.getElementById("submitProgressBar");
+  const labelEl = document.getElementById("submitProgressLabel");
+  if (!progress || !bar || !labelEl) return;
+  const safePercent = Math.max(0, Math.min(100, percent));
+  progress.classList.remove("is-hidden");
+  progress.setAttribute("aria-valuenow", String(safePercent));
+  bar.style.width = `${safePercent}%`;
+  labelEl.textContent = label;
+}
+
+function hideProgress(): void {
+  const progress = document.getElementById("submitProgress");
+  const bar = document.getElementById("submitProgressBar");
+  const labelEl = document.getElementById("submitProgressLabel");
+  if (!progress || !bar || !labelEl) return;
+  progress.classList.add("is-hidden");
+  progress.setAttribute("aria-valuenow", "0");
+  bar.style.width = "0%";
+  labelEl.textContent = "Preparing...";
+}
+
+function startFeedbackProgress(): number {
+  let percent = 45;
+  setProgress(percent, "Generating AI feedback...");
+  return window.setInterval(() => {
+    percent = Math.min(percent + 5, 90);
+    const label =
+      percent < 70
+        ? "Analyzing the essay..."
+        : "Validating feedback and course material suggestions...";
+    setProgress(percent, label);
+  }, 1200);
+}
+
 function readFeedbackFromStorage(): FeedbackResponse | null {
   const raw = sessionStorage.getItem(STORAGE_KEYS.latestFeedback);
   if (!raw) return null;
@@ -53,8 +89,15 @@ function applyActiveState(activeId: number | null): void {
     node.classList.remove("is-active");
   });
   if (activeId === null) return;
+
   document.querySelectorAll<HTMLElement>(`[data-id="${activeId}"]`).forEach((node) => {
     node.classList.add("is-active");
+  });
+  document.querySelectorAll<HTMLElement>(".hl").forEach((node) => {
+    const ids = node.dataset.ids?.split(",").map((value) => Number(value)) ?? [];
+    if (ids.includes(activeId)) {
+      node.classList.add("is-active");
+    }
   });
 }
 
@@ -73,8 +116,12 @@ function bindCrossHighlight(ctx: AppContext): void {
       const highlight = document.querySelector<HTMLElement>(
         `.hl[data-id="${id}"]`,
       );
-      card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      highlight?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const fromSidebar = node.classList.contains("feedback-card");
+      if (fromSidebar) {
+        highlight?.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
     });
   });
 }
@@ -143,25 +190,33 @@ async function loadFileIntoContext(
     return;
   }
 
+  setProgress(10, `Reading ${file.name}...`);
   setStatus(statusEl, `Reading file: ${file.name}...`);
   try {
     const lower = file.name.toLowerCase();
     if (lower.endsWith(".txt") || lower.endsWith(".md")) {
+      setProgress(25, "Loading text file...");
       ctx.essayText = (await file.text()).trim();
     } else {
+      setProgress(25, "Uploading file for text extraction...");
       const result = await extractTextFromFile(file);
+      setProgress(40, "Text extracted from file.");
       ctx.essayText = result.essay_text;
     }
     if (!ctx.essayText) {
       setStatus(statusEl, "File parsed but no text was extracted.", "error");
+      setProgress(100, "File could not be parsed.");
       setDropzoneFilename(null);
       return;
     }
     setDropzoneFilename(file.name);
+    setProgress(100, "File ready for feedback.");
     setStatus(statusEl, `Loaded ${file.name}.`);
+    window.setTimeout(hideProgress, 800);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to read file.";
     setStatus(statusEl, message, "error");
+    setProgress(100, "File loading failed.");
     setDropzoneFilename(null);
   }
 }
@@ -270,9 +325,14 @@ function setupAppPage(): void {
     }
 
     setStatus(statusEl, "Generating feedback... please wait.");
+    submitBtn.setAttribute("disabled", "true");
+    useSampleBtn?.setAttribute("disabled", "true");
+    const progressTimer = startFeedbackProgress();
     sessionStorage.setItem(STORAGE_KEYS.submittedEssayText, essayText);
     try {
       const feedback = await submitEssay(essayText);
+      window.clearInterval(progressTimer);
+      setProgress(100, "Feedback generated.");
       sessionStorage.setItem(STORAGE_KEYS.latestFeedback, JSON.stringify(feedback));
       ctx.state = { ...initialViewerState };
       ctx.feedback = feedback;
@@ -281,8 +341,13 @@ function setupAppPage(): void {
       renderFeedback(ctx);
       setStatus(statusEl, "Feedback generated.");
     } catch (error) {
+      window.clearInterval(progressTimer);
       const message = error instanceof Error ? error.message : "Request failed.";
+      setProgress(100, "Feedback generation failed.");
       setStatus(statusEl, message, "error");
+    } finally {
+      submitBtn.removeAttribute("disabled");
+      useSampleBtn?.removeAttribute("disabled");
     }
   });
 
@@ -295,6 +360,7 @@ function setupAppPage(): void {
     if (fileInput) {
       fileInput.value = "";
     }
+    hideProgress();
     viewerShell?.classList.add("is-hidden");
     inputPanel?.classList.remove("is-hidden");
     setStatus(statusEl, "Ready for a new submission.");

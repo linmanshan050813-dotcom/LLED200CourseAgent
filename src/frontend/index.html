@@ -68,6 +68,20 @@
           </div>
 
           <p id="submitStatus" class="submit-status" aria-live="polite"></p>
+          <div
+            id="submitProgress"
+            class="submit-progress is-hidden"
+            role="progressbar"
+            aria-label="Feedback progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="submit-progress__bar" id="submitProgressBar"></div>
+            <div class="submit-progress__label" id="submitProgressLabel">
+              Preparing...
+            </div>
+          </div>
 
           <div class="form-actions">
             <button id="useSampleBtn" class="btn btn-secondary" type="button">

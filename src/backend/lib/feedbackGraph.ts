@@ -12,6 +12,10 @@ import { formatParagraphsForPrompt, parseEssay } from "./essayParser.js";
 import { callOpenAiForFeedback, callOpenAiForJson, annotationJsonSchema } from "./openaiClient.js";
 import { buildPromptMessages, type PromptMessage } from "./promptBuilder.js";
 import { validateFeedbackResponse } from "./schemaValidator.js";
+import {
+  evaluateFeedbackSeriousness,
+  sortAnnotationsBySeriousness,
+} from "./seriousnessEvaluator.js";
 
 const FUNCTION_PROMPTS: Record<FunctionDimension, string> = {
   content:
@@ -21,6 +25,21 @@ const FUNCTION_PROMPTS: Record<FunctionDimension, string> = {
   organization:
     "Focus only on the Organizational Function. Evaluate text structure, paragraph flow, transitions, cohesion, Theme/New ordering, clause structure, and punctuation for readability. Every annotation you return MUST have function set to organization.",
 };
+
+const ACCESSIBLE_COURSE_LANGUAGE_OVERRIDE = `
+STUDENT-FACING LANGUAGE (MANDATORY):
+- Write exclusively in English. Do NOT use Chinese or any other language.
+- Use LLED 200 course terms when they fit (Theme/New, nominalization, relational/material process, hedging, boosting, definition pattern, cohesion, interpersonal positioning, etc.).
+- Follow the term + plain English explanation pattern: name the concept, then explain it in this specific quote.
+- issue_type may use a course label; feedback is 1-2 short sentences; revision_guidance is 1 short sentence.
+- Use "you/your". Do not stack multiple terms in one sentence. Do not use terms without an English gloss.
+- citations MUST be an empty array []. Course materials are attached server-side.
+
+ANNOTATION ANCHORING (MANDATORY):
+- evidence.quote MUST be copied verbatim from the paragraph text (exact substring).
+- char_start and char_end MUST match that exact quote in the paragraph (0-based, end exclusive).
+- Do NOT guess offsets; locate the quote first, then set char_start/char_end to its position.
+`;
 
 const SEVERITY_RANK: Record<Severity, number> = {
   high: 0,
@@ -144,6 +163,7 @@ function buildDimensionMessages(
 
 LANGGRAPH DIMENSION NODE OVERRIDE:
 ${FUNCTION_PROMPTS[dimension]}
+${ACCESSIBLE_COURSE_LANGUAGE_OVERRIDE}
 Return ONLY the dimension feedback object required by the active JSON schema:
 - annotations
 - summary
@@ -279,7 +299,24 @@ function validateMergedFeedback(state: FeedbackGraphStateType): FeedbackGraphUpd
 }
 
 function routeAfterValidation(state: FeedbackGraphStateType): string {
-  return state.validationError ? "repair_feedback" : "attach_course_materials";
+  return state.validationError ? "repair_feedback" : "evaluate_seriousness";
+}
+
+function evaluateSeriousness(state: FeedbackGraphStateType): FeedbackGraphUpdate {
+  if (!state.feedback) {
+    throw new Error("No validated feedback available for seriousness evaluation.");
+  }
+
+  const evaluated = sortAnnotationsBySeriousness(
+    evaluateFeedbackSeriousness(state.feedback.annotations, state.essayText),
+  ).map((item, index) => ({ ...item, id: index + 1 }));
+
+  return {
+    feedback: {
+      ...state.feedback,
+      annotations: evaluated,
+    },
+  };
 }
 
 async function repairFeedbackOnce(
@@ -322,22 +359,16 @@ function attachCourseMaterials(state: FeedbackGraphStateType): FeedbackGraphUpda
 
   const feedback: FeedbackResponse = {
     ...state.feedback,
-    annotations: state.feedback.annotations.map((item) => {
-      const rubricCitations = item.citations.filter(
-        (citation) => citation.type === "rubric",
-      );
-      return {
-        ...item,
-        citations: [
-          ...rubricCitations,
-          {
-            type: "course_material",
-            label: getCourseMaterialLabel(item.function, item.level),
-            url: null,
-          },
-        ],
-      };
-    }),
+    annotations: state.feedback.annotations.map((item) => ({
+      ...item,
+      citations: [
+        {
+          type: "course_material" as const,
+          label: getCourseMaterialLabel(item.function, item.level),
+          url: null,
+        },
+      ],
+    })),
   };
 
   return { feedback };
@@ -358,6 +389,7 @@ const feedbackGraph = new StateGraph(FeedbackGraphState)
   .addNode("merge_feedback", mergeFeedbackAnnotations)
   .addNode("validate_feedback", validateMergedFeedback)
   .addNode("repair_feedback", repairFeedbackOnce)
+  .addNode("evaluate_seriousness", evaluateSeriousness)
   .addNode("attach_course_materials", attachCourseMaterials)
   .addNode("return_feedback", returnFeedback)
   .addEdge(START, "prepare_context")
@@ -371,9 +403,10 @@ const feedbackGraph = new StateGraph(FeedbackGraphState)
   .addEdge("merge_feedback", "validate_feedback")
   .addConditionalEdges("validate_feedback", routeAfterValidation, [
     "repair_feedback",
-    "attach_course_materials",
+    "evaluate_seriousness",
   ])
   .addEdge("repair_feedback", "validate_feedback")
+  .addEdge("evaluate_seriousness", "attach_course_materials")
   .addEdge("attach_course_materials", "return_feedback")
   .addEdge("return_feedback", END)
   .compile();

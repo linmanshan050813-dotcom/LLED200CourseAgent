@@ -240,6 +240,28 @@ body {
   font-weight: 600;
 }
 
+.submit-progress {
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.submit-progress__bar {
+  width: 0%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--teal);
+  transition: width 0.25s ease;
+}
+
+.submit-progress__label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .btn {
   border: 1px solid transparent;
   border-radius: 999px;
@@ -558,6 +580,54 @@ body {
   background: var(--green-light);
   color: var(--green);
   border-color: rgba(21, 128, 61, 0.4);
+}
+
+.feedback-card__seriousness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.feedback-card__seriousness-reason {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tag-seriousness {
+  background: #1f2937;
+  color: #fff;
+  border-color: #1f2937;
+}
+
+.tag-priority {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: rgba(194, 65, 12, 0.35);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.seriousness-extra-high .tag-seriousness {
+  background: #7f1d1d;
+  border-color: #7f1d1d;
+}
+
+.seriousness-high .tag-seriousness {
+  background: var(--rose);
+  border-color: var(--rose);
+}
+
+.seriousness-medium .tag-seriousness {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.seriousness-low .tag-seriousness {
+  background: var(--green);
+  border-color: var(--green);
 }
 
 .feedback-card__issue {

@@ -1,0 +1,27 @@
+%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph TD
+  __start__(["__start__"])
+  prepare_context["prepare_context<br/>Parse essay + build prompts"]
+  content_feedback["content_feedback<br/>LLM: Content function"]
+  interpersonal_feedback["interpersonal_feedback<br/>LLM: Interpersonal function"]
+  organization_feedback["organization_feedback<br/>LLM: Organization function"]
+  merge_feedback["merge_feedback<br/>Merge + rank annotations"]
+  validate_feedback["validate_feedback<br/>Zod schema validation"]
+  repair_feedback["repair_feedback<br/>One-shot JSON repair"]
+  attach_course_materials["attach_course_materials<br/>Map course material labels"]
+  return_feedback["return_feedback<br/>Return FeedbackResponse"]
+  __end__(["__end__"])
+
+  __start__ --> prepare_context
+  prepare_context --> content_feedback
+  prepare_context --> interpersonal_feedback
+  prepare_context --> organization_feedback
+  content_feedback --> merge_feedback
+  interpersonal_feedback --> merge_feedback
+  organization_feedback --> merge_feedback
+  merge_feedback --> validate_feedback
+  validate_feedback -->|"validation failed"| repair_feedback
+  validate_feedback -->|"validation passed"| attach_course_materials
+  repair_feedback --> validate_feedback
+  attach_course_materials --> return_feedback
+  return_feedback --> __end__

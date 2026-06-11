@@ -2,6 +2,28 @@ export type FunctionDimension = "content" | "interpersonal" | "organization";
 export type LinguisticLevel = "text" | "section" | "clause_word";
 export type Severity = "low" | "medium" | "high";
 
+export type RubricCategory =
+  | "Content"
+  | "Organization: Whole text"
+  | "Organization: Paragraph level"
+  | "Organization: Clause level"
+  | "Presentation";
+
+export type FeedbackSeriousness = "Low" | "Medium" | "High" | "Extra high";
+
+export type StudentPriority =
+  | "Minor polish"
+  | "Useful improvement"
+  | "Important revision"
+  | "Must revise first";
+
+export interface SeriousnessMetadata {
+  rubric_category?: RubricCategory;
+  seriousness: FeedbackSeriousness;
+  reason: string;
+  student_priority: StudentPriority;
+}
+
 export interface Paragraph {
   id: string;
   text: string;
@@ -31,7 +53,14 @@ export interface Annotation {
   feedback: string;
   revision_guidance: string;
   citations: Citation[];
+  rubric_category?: RubricCategory;
+  seriousness?: FeedbackSeriousness;
+  reason?: string;
+  student_priority?: StudentPriority;
 }
+
+/** Annotation after seriousness evaluation (API response shape). */
+export type EvaluatedAnnotation = Annotation & SeriousnessMetadata;
 
 export interface OverallFeedback {
   summary: string;

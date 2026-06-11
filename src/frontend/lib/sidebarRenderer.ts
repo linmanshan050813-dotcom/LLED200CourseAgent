@@ -1,7 +1,8 @@
 import {
   FUNCTION_LABELS,
   LEVEL_LABELS,
-  SEVERITY_LABELS,
+  SERIOUSNESS_LABELS,
+  STUDENT_PRIORITY_LABELS,
 } from "../../shared/constants.js";
 import { getCourseMaterialLabel } from "../../shared/courseMaterials.js";
 import type { Annotation, Citation, OverallFeedback } from "../../shared/schema.js";
@@ -15,20 +16,8 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function renderCitations(citations: Citation[]): string {
-  const rubricCitations = citations.filter((item) => item.type === "rubric");
-  if (rubricCitations.length === 0) return "";
-  const items = rubricCitations
-    .map((item) => {
-      const label = escapeHtml(item.label);
-      const inner =
-        item.url && item.url.length > 0
-          ? `<a class="cite-btn" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Rubric · ${label}</a>`
-          : `<span class="cite-btn">Rubric · ${label}</span>`;
-      return `<li>${inner}</li>`;
-    })
-    .join("");
-  return `<ul class="feedback-card__citations">${items}</ul>`;
+function renderCitations(_citations: Citation[]): string {
+  return "";
 }
 
 function getCourseMaterial(item: Annotation): Citation {
@@ -63,6 +52,21 @@ function renderLearningModule(item: Annotation): string {
   </aside>`;
 }
 
+function seriousnessClass(seriousness: string | undefined): string {
+  switch (seriousness) {
+    case "Extra high":
+      return "seriousness-extra-high";
+    case "High":
+      return "seriousness-high";
+    case "Medium":
+      return "seriousness-medium";
+    case "Low":
+      return "seriousness-low";
+    default:
+      return "seriousness-medium";
+  }
+}
+
 export function renderSidebarCards(annotations: Annotation[]): string {
   if (annotations.length === 0) {
     return `<div class="feedback-card feedback-card--empty"><div class="feedback-card__text">No feedback in the current filter.</div></div>`;
@@ -72,16 +76,28 @@ export function renderSidebarCards(annotations: Annotation[]): string {
     .map((item) => {
       const fnLabel = FUNCTION_LABELS[item.function];
       const levelLabel = LEVEL_LABELS[item.level];
-      const sevLabel = SEVERITY_LABELS[item.severity];
+      const seriousnessLabel = item.seriousness
+        ? SERIOUSNESS_LABELS[item.seriousness]
+        : null;
+      const priorityLabel = item.student_priority
+        ? STUDENT_PRIORITY_LABELS[item.student_priority]
+        : null;
+      const seriousnessMeta =
+        item.seriousness && item.student_priority
+          ? `<div class="feedback-card__seriousness ${seriousnessClass(item.seriousness)}">
+      <span class="feedback-card__tag tag-seriousness">${escapeHtml(seriousnessLabel ?? item.seriousness)}</span>
+      <span class="feedback-card__tag tag-priority">${escapeHtml(priorityLabel ?? item.student_priority)}</span>
+    </div>`
+          : "";
 
       return `
-<article class="feedback-card feedback-card--severity-${item.severity}" data-id="${item.id}" data-function="${item.function}" data-level="${item.level}">
+<article class="feedback-card feedback-card--severity-${item.severity}" data-id="${item.id}" data-function="${item.function}" data-level="${item.level}"${item.seriousness ? ` data-seriousness="${item.seriousness}"` : ""}>
   <header class="feedback-card__header">
     <span class="feedback-card__pin pin-${item.severity}">${item.id}</span>
     <span class="feedback-card__tag tag-function tag-${item.function}">${fnLabel}</span>
     <span class="feedback-card__tag tag-level">${levelLabel}</span>
-    <span class="feedback-card__tag tag-severity tag-severity-${item.severity}">${sevLabel}</span>
   </header>
+  ${seriousnessMeta}
   <div class="feedback-card__issue">${escapeHtml(item.issue_type)}</div>
   ${
     item.evidence?.quote

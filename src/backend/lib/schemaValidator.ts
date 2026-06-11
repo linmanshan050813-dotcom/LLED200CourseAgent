@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeAnnotationOffsets } from "./annotationNormalizer.js";
 import type { FeedbackResponse, Paragraph } from "../../shared/schema.js";
 
 const citationSchema = z.object({
@@ -10,6 +11,24 @@ const citationSchema = z.object({
 const evidenceSchema = z.object({
   quote: z.string(),
   reason: z.string(),
+});
+
+const seriousnessMetadataSchema = z.object({
+  rubric_category: z.enum([
+    "Content",
+    "Organization: Whole text",
+    "Organization: Paragraph level",
+    "Organization: Clause level",
+    "Presentation",
+  ]).optional(),
+  seriousness: z.enum(["Low", "Medium", "High", "Extra high"]),
+  reason: z.string(),
+  student_priority: z.enum([
+    "Minor polish",
+    "Useful improvement",
+    "Important revision",
+    "Must revise first",
+  ]),
 });
 
 const annotationSchema = z.object({
@@ -25,6 +44,10 @@ const annotationSchema = z.object({
   feedback: z.string(),
   revision_guidance: z.string(),
   citations: z.array(citationSchema),
+  rubric_category: seriousnessMetadataSchema.shape.rubric_category.optional(),
+  seriousness: seriousnessMetadataSchema.shape.seriousness.optional(),
+  reason: z.string().optional(),
+  student_priority: seriousnessMetadataSchema.shape.student_priority.optional(),
 });
 
 const overallFeedbackSchema = z.object({
@@ -54,28 +77,13 @@ function normalizeFeedback(feedback: FeedbackResponse, paragraphs: Paragraph[]):
     paragraphs.map((item) => [item.id.toLowerCase(), item.text] as const),
   );
 
-  const safeAnnotations = feedback.annotations
-    .map((item) => ({
+  const safeAnnotations = normalizeAnnotationOffsets(
+    feedback.annotations.map((item) => ({
       ...item,
       paragraph_id: item.paragraph_id.toLowerCase(),
-    }))
-    .filter((item) => {
-      const text = paragraphById.get(item.paragraph_id);
-      if (!text) {
-        console.warn(
-          `Drop annotation ${item.id}: paragraph ${item.paragraph_id} not found`,
-        );
-        return false;
-      }
-      const valid =
-        item.char_start >= 0 &&
-        item.char_end > item.char_start &&
-        item.char_end <= text.length;
-      if (!valid) {
-        console.warn(`Drop annotation ${item.id}: char range out of bounds`);
-      }
-      return valid;
-    });
+    })),
+    paragraphById,
+  );
 
   return {
     ...feedback,

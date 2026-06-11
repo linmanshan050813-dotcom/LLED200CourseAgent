@@ -96,6 +96,7 @@ The `npm run dev` command already runs the frontend TypeScript watcher and the b
 src/backend/
   server.ts                 Express server and API routes
   lib/feedbackGraph.ts      LangGraph feedback workflow
+  lib/seriousnessEvaluator.ts  Rubric-aligned feedback seriousness evaluator
   lib/prompts/prompt.md     Main Descriptive Report feedback prompt
 
 src/frontend/

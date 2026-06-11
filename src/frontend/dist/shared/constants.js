@@ -17,3 +17,15 @@ export const SEVERITY_LABELS = {
     medium: "Medium Priority",
     high: "High Priority",
 };
+export const SERIOUSNESS_LABELS = {
+    Low: "Low",
+    Medium: "Medium",
+    High: "High",
+    "Extra high": "Extra high",
+};
+export const STUDENT_PRIORITY_LABELS = {
+    "Minor polish": "Minor polish",
+    "Useful improvement": "Useful improvement",
+    "Important revision": "Important revision",
+    "Must revise first": "Must revise first",
+};
