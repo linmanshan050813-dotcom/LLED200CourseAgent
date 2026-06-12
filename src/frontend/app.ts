@@ -66,7 +66,7 @@ function startFeedbackProgress(): number {
     percent = Math.min(percent + 5, 90);
     const label =
       percent < 70
-        ? "Analyzing the essay..."
+        ? "Analyzing the text..."
         : "Validating feedback and course material suggestions...";
     setProgress(percent, label);
   }, 1200);
@@ -313,14 +313,14 @@ function setupAppPage(): void {
 
   useSampleBtn?.addEventListener("click", () => {
     ctx.essayText = SAMPLE_ESSAY;
-    setDropzoneFilename("sample-essay.txt");
-    setStatus(statusEl, "Sample essay loaded.");
+    setDropzoneFilename("sample-text.txt");
+    setStatus(statusEl, "Sample text loaded.");
   });
 
   submitBtn?.addEventListener("click", async () => {
     const essayText = ctx.essayText.trim();
     if (!essayText) {
-      setStatus(statusEl, "Please drop a file or load the sample essay first.", "error");
+      setStatus(statusEl, "Please drop a file or load the sample text first.", "error");
       return;
     }
 

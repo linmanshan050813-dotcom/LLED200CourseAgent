@@ -31,15 +31,126 @@ STUDENT-FACING LANGUAGE (MANDATORY):
 - Write exclusively in English. Do NOT use Chinese or any other language.
 - Use LLED 200 course terms when they fit (Theme/New, nominalization, relational/material process, hedging, boosting, definition pattern, cohesion, interpersonal positioning, etc.).
 - Follow the term + plain English explanation pattern: name the concept, then explain it in this specific quote.
-- issue_type may use a course label; feedback is 1-2 short sentences; revision_guidance is 1 short sentence.
+- issue_type MUST start with Strong/Good (strength), Weak/Missing (weakness), or Adequate/Room to improve (average).
+- feedback is 1-2 short sentences; for strengths use revision_guidance exactly: Keep this pattern in your revision.
 - Use "you/your". Do not stack multiple terms in one sentence. Do not use terms without an English gloss.
 - citations MUST be an empty array []. Course materials are attached server-side.
+
+LANGUAGE-POINT COMMENTS (MANDATORY):
+- Return exactly 2 language-point comments for this function (not more).
+- Include a mix: at least one strength OR average, and at least one weakness OR average.
+- Each comment must name one specific course language point and anchor to a quote.
 
 ANNOTATION ANCHORING (MANDATORY):
 - evidence.quote MUST be copied verbatim from the paragraph text (exact substring).
 - char_start and char_end MUST match that exact quote in the paragraph (0-based, end exclusive).
 - Do NOT guess offsets; locate the quote first, then set char_start/char_end to its position.
 `;
+
+const DEFAULT_LANGUAGE_POINT_COUNT = 5;
+const MIN_LANGUAGE_POINT_COUNT = 4;
+const ANNOTATIONS_PER_DIMENSION = 2;
+
+const STRENGTH_ISSUE_PATTERN = /^(Strong|Good|Effective|Clear)\b/i;
+const WEAKNESS_ISSUE_PATTERN = /^(Weak|Missing|Poor|Broken|Unclear|Insufficient)\b/i;
+const AVERAGE_ISSUE_PATTERN = /^(Adequate|Average|Room|Mixed|Moderate)\b/i;
+
+type LanguagePointQuality = "strength" | "weakness" | "average";
+
+function classifyLanguagePointQuality(item: Annotation): LanguagePointQuality {
+  if (STRENGTH_ISSUE_PATTERN.test(item.issue_type)) {
+    return "strength";
+  }
+  if (WEAKNESS_ISSUE_PATTERN.test(item.issue_type)) {
+    return "weakness";
+  }
+  if (AVERAGE_ISSUE_PATTERN.test(item.issue_type)) {
+    return "average";
+  }
+  if (
+    item.severity === "low" &&
+    /keep this pattern|works well|effective|clear|strong|appropriate/i.test(
+      `${item.feedback} ${item.revision_guidance}`,
+    )
+  ) {
+    return "strength";
+  }
+  if (item.severity === "high") {
+    return "weakness";
+  }
+  return "average";
+}
+
+function selectDefaultLanguagePoints(all: Annotation[]): Annotation[] {
+  if (all.length <= DEFAULT_LANGUAGE_POINT_COUNT) {
+    return all;
+  }
+
+  const picked: Annotation[] = [];
+  const used = new Set<Annotation>();
+
+  const pools: Record<LanguagePointQuality, Annotation[]> = {
+    strength: [],
+    weakness: [],
+    average: [],
+  };
+
+  for (const item of all) {
+    pools[classifyLanguagePointQuality(item)].push(item);
+  }
+
+  const pickFrom = (
+    pool: Annotation[],
+    preferNewFunction = true,
+  ): Annotation | null => {
+    const sorted = [...pool].sort(
+      (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
+    );
+    for (const item of sorted) {
+      if (used.has(item)) continue;
+      if (preferNewFunction && picked.some((entry) => entry.function === item.function)) {
+        continue;
+      }
+      return item;
+    }
+    for (const item of sorted) {
+      if (!used.has(item)) return item;
+    }
+    return null;
+  };
+
+  const add = (item: Annotation | null): void => {
+    if (!item || used.has(item)) return;
+    picked.push(item);
+    used.add(item);
+  };
+
+  for (const quality of ["strength", "weakness", "average"] as const) {
+    add(pickFrom(pools[quality]));
+  }
+
+  const functions: FunctionDimension[] = [
+    "content",
+    "interpersonal",
+    "organization",
+  ];
+  for (const fn of functions) {
+    if (picked.some((item) => item.function === fn)) continue;
+    const candidate = all.find((item) => item.function === fn && !used.has(item));
+    add(candidate ?? null);
+  }
+
+  const remaining = [...all]
+    .filter((item) => !used.has(item))
+    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+
+  for (const item of remaining) {
+    if (picked.length >= DEFAULT_LANGUAGE_POINT_COUNT) break;
+    add(item);
+  }
+
+  return picked.slice(0, DEFAULT_LANGUAGE_POINT_COUNT);
+}
 
 const SEVERITY_RANK: Record<Severity, number> = {
   high: 0,
@@ -172,7 +283,7 @@ Return ONLY the dimension feedback object required by the active JSON schema:
 - reflection_questions
 
 Do NOT return the full top-level FeedbackResponse in this node.
-Return at most 4 annotations for this function.`,
+Return exactly 2 language-point comments for this function (mix of strength, weakness, and/or average).`,
     },
     {
       role: "user",
@@ -196,7 +307,7 @@ async function generateDimensionFeedback(
     ...parsed,
     annotations: parsed.annotations
       .filter((item) => item.function === dimension)
-      .slice(0, 4) as Annotation[],
+      .slice(0, ANNOTATIONS_PER_DIMENSION) as Annotation[],
   };
 }
 
@@ -247,17 +358,24 @@ function mergeFeedbackAnnotations(state: FeedbackGraphStateType): FeedbackGraphU
     "organization",
   );
   const dimensionFeedback = [content, interpersonal, organization];
-  const annotations = dimensionFeedback
+  const candidateAnnotations = dimensionFeedback
     .flatMap((item) => item.annotations)
-    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-    .slice(0, 12)
-    .map((item, index) => ({ ...item, id: index + 1 }));
+    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+  const selected = selectDefaultLanguagePoints(candidateAnnotations);
+  const annotations =
+    selected.length >= MIN_LANGUAGE_POINT_COUNT
+      ? selected
+      : candidateAnnotations.slice(0, DEFAULT_LANGUAGE_POINT_COUNT);
+  const normalizedAnnotations = annotations.map((item, index) => ({
+    ...item,
+    id: index + 1,
+  }));
 
   const feedback: FeedbackResponse = {
     submission_id: null,
     created_at: null,
     essay: { paragraphs: state.paragraphs },
-    annotations,
+    annotations: normalizedAnnotations,
     overall_feedback: {
       summary: dimensionFeedback.map((item) => item.summary).join(" "),
       priority_issues: takeNonEmpty(
