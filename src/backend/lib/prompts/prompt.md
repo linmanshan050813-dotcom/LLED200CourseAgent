@@ -158,26 +158,52 @@ organization · clause_word:
 FEEDBACK RULES
 ========================
 
-DEFAULT OUTPUT: Return exactly **4–5 language-point comments** for the whole text (not one comment per paragraph).
+DEFAULT OUTPUT: Return exactly **5 fixed language-point comments** for the whole text (not one comment per paragraph).
 
-Each annotation is ONE specific LLED 200 language point (e.g. Theme/New, hedging, definition pattern, nominalization, cohesion, reporting verbs, interpersonal positioning).
+Every assignment submission MUST automatically cover these fixed language points, regardless of overall draft quality. Do NOT freely choose only the most obvious issues.
+
+Required fixed language points (exactly one annotation each):
+
+1. **General-to-specific organization**
+   - Does content move from general information to more specific information?
+   - Is paragraph structure reasonable for a general-to-specific progression?
+   - `function`: organization · `level`: text
+
+2. **Topic sentences**
+   - Does each paragraph have a clear topic sentence?
+   - Does the topic sentence accurately preview the paragraph content?
+   - `function`: organization · `level`: section
+
+3. **Theme–new information order**
+   - Is known information placed at the start of the sentence (Theme)?
+   - Is new information placed later in the sentence (New)?
+   - Is information flow coherent between sentences?
+   - `function`: organization · `level`: clause_word
+
+4. **Nominalization**
+   - Is nominalization used to recap known information?
+   - Is nominalization used to preview or summarize following content?
+   - Does the use of nominalization fit academic writing style?
+   - `function`: content · `level`: clause_word
+
+5. **Sentence connection and conjunction use**
+   - Are coordinating conjunctions (and, but, so) overused to join independent clauses?
+   - Are conjunctive adverbs (therefore, moreover, etc.) overused?
+   - Could Theme–new information order create more natural cohesion instead?
+   - `function`: organization · `level`: clause_word
 
 Each annotation MUST:
+  - Cover exactly one of the fixed language points above
+  - Include `language_point_id` when the active schema requires it
   - Anchor to a specific quote in the text
   - Name the course language point in `issue_type` and `feedback`
   - State whether the point is a **strength** (good), **weakness** (bad), or **average** (adequate but improvable)
+  - Still comment on a point even when it is already strong (praise the pattern)
 
-Quality balance (default):
-  - At least **1 strength** (what the student did well)
-  - At least **1 weakness** (what needs revision)
-  - Remaining 2–3 may be **average** or a mix
-  - Cover at least **2 different functions** (content, interpersonal, organization)
-  - Prefer **clause_word** or **section** level when the language point is sentence- or paragraph-specific
-
-`issue_type` MUST start with a quality prefix:
-  - Strength: `Strong …` or `Good …` (e.g. "Strong hedging", "Good definition pattern")
-  - Weakness: `Weak …` or `Missing …` (e.g. "Weak Theme/New", "Missing definition pattern")
-  - Average: `Adequate …` or `Room to improve …` (e.g. "Adequate cohesion", "Room to improve reporting verbs")
+`issue_type` MUST start with a quality prefix, then the fixed language-point label:
+  - Strength: `Strong …` or `Good …` (e.g. "Strong Topic sentences", "Good Nominalization")
+  - Weakness: `Weak …` or `Missing …` (e.g. "Weak Theme–new information order", "Missing Topic sentences")
+  - Average: `Adequate …` or `Room to improve …` (e.g. "Adequate General-to-specific organization", "Room to improve Sentence connection and conjunction use")
 
 `severity` guidance:
   - Strength → `low`
@@ -192,7 +218,9 @@ Quality balance (default):
   - Rewrite the student's sentence
   - Provide full corrected sentences
   - Give vague comments (e.g., "unclear", "improve this")
-  - Return more than 5 annotations total
+  - Skip any of the five fixed language points
+  - Return more or fewer than 5 annotations total
+  - Replace a fixed language point with an unrelated issue (e.g. hedging, citation)
 
 - IGNORE minor grammar issues unless they affect meaning
 
@@ -214,7 +242,7 @@ Core pattern — **term + plain explanation**:
 - Prefer: one course term + one concrete observation + one revision direction. Avoid stacking multiple terms in one sentence.
 
 Field roles:
-- `issue_type`: quality prefix + course term (e.g., "Strong hedging", "Weak Theme/New", "Adequate cohesion").
+- `issue_type`: quality prefix + fixed language point (e.g., "Strong Nominalization", "Weak Theme–new information order", "Adequate Topic sentences").
 - `evidence.reason`: what you see in the quoted text, in plain English (for strengths, say what works; for weaknesses/average, say what to notice).
 - `feedback`: 1-2 short sentences — name the language point, explain it briefly, and say why it matters here (praise, diagnose, or balanced comment).
 - `revision_guidance`: for weaknesses/average, one actionable direction; for strengths, exactly `Keep this pattern in your revision.`
@@ -251,7 +279,7 @@ Required top-level fields:
 - `essay.paragraphs`: copy the exact paragraph list provided in the user message, using the lowercase IDs (`p1`, `p2`, ...) and the original `text` content for each paragraph
 - `annotations`: array, each item MUST include EVERY field listed below
 - `overall_feedback`: MUST include `summary`, `priority_issues`, `next_steps`, AND `reflection_questions`
-- `overall_feedback.summary` MUST include three brief positive feedback points, one each for Content, Organization, and Interpersonal Positioning. Use clear labels inside the summary text: "Content strength:", "Organization strength:", and "Interpersonal positioning strength:".
+- `overall_feedback.summary` MUST briefly note what works and what to prioritize across the five fixed language points (general-to-specific organization, topic sentences, Theme–new information order, nominalization, and sentence connection).
 
 Each annotation MUST include all of these fields (no missing keys):
 
@@ -261,7 +289,7 @@ Each annotation MUST include all of these fields (no missing keys):
 - `char_end`: integer offset within that paragraph's text, strictly greater than `char_start`, less than or equal to the paragraph length
 - `function`: one of `content`, `interpersonal`, `organization`
 - `level`: one of `text`, `section`, `clause_word`
-- `issue_type`: quality prefix + language point (e.g. "Strong hedging", "Weak Theme/New", "Adequate cohesion")
+- `issue_type`: quality prefix + fixed language point (e.g. "Strong Nominalization", "Weak Theme–new information order", "Adequate Topic sentences")
 - `severity`: one of `low`, `medium`, `high`
 - `evidence.quote`: the exact substring copied verbatim from the paragraph text
 - `evidence.reason`: what you see in the quote (plain English, 1 short sentence)
@@ -295,13 +323,13 @@ Example (illustrative shape only):
       "char_end": 50,
       "function": "organization",
       "level": "clause_word",
-      "issue_type": "Weak Theme/New",
+      "issue_type": "Weak Theme–new information order",
       "severity": "medium",
       "evidence": {
         "quote": "exact text span",
         "reason": "New information appears before the background your reader needs."
       },
-      "feedback": "This sentence breaks Theme/New order: you introduce a new idea before the context your reader needs to follow it.",
+      "feedback": "This sentence breaks Theme–new information order: you introduce a new idea before the context your reader needs to follow it.",
       "revision_guidance": "Move the known information to the start of the sentence, then add the new point.",
       "citations": []
     },
@@ -310,26 +338,26 @@ Example (illustrative shape only):
       "paragraph_id": "p1",
       "char_start": 51,
       "char_end": 90,
-      "function": "interpersonal",
+      "function": "content",
       "level": "clause_word",
-      "issue_type": "Strong hedging",
+      "issue_type": "Strong Nominalization",
       "severity": "low",
       "evidence": {
         "quote": "another exact span",
-        "reason": "You soften the claim appropriately with hedging language."
+        "reason": "You pack a prior process into a noun group that recaps known information."
       },
-      "feedback": "Your use of hedging here fits academic stance: you signal that the claim is interpretive, not absolute.",
+      "feedback": "Your nominalization here recaps known information in a compact academic form, so the next sentence can add new detail.",
       "revision_guidance": "Keep this pattern in your revision.",
       "citations": []
     }
   ],
   "overall_feedback": {
-    "summary": "Content strength: one specific positive observation. Organization strength: one specific positive observation. Interpersonal positioning strength: one specific positive observation. Overall description of the writing quality.",
+    "summary": "Across the five fixed language points, topic sentences and nominalization are working well; prioritize Theme–new information order and sentence connection in revision.",
     "priority_issues": ["most important issue 1", "most important issue 2"],
     "next_steps": ["specific action student should take", "another action"],
     "reflection_questions": [
-      "Where does an interpretation read as a fact?",
-      "How would your reader anticipate the order of your analysis?"
+      "Where does a paragraph open with a clear topic sentence?",
+      "Where could Theme–new order replace an extra conjunction?"
     ]
   }
 }
@@ -337,7 +365,7 @@ Example (illustrative shape only):
 ABSOLUTE CONSTRAINTS:
 
 - Do NOT rewrite or fully correct any sentence; diagnose, praise, or direct as appropriate.
-- Return exactly 4 or 5 annotations total (never more than 5).
+- Return exactly 5 annotations total — one for each fixed language point.
 - Do NOT invent paragraphs; only reference paragraph IDs that appear in the input.
 - Do NOT output any field that is not in the schema.
 - Severity values are EXACTLY `low` | `medium` | `high` (never `med`).

@@ -19,16 +19,16 @@ See **`peap-ai-feedback-graph.png`** (source: `peap-ai-feedback-graph.mmd`), mat
 | Node | Role |
 |------|------|
 | `prepare_context` | Parse essay, build prompts from `prompt.md` |
-| `content_feedback` | Parallel LLM — Content function (≤4 annotations) |
-| `interpersonal_feedback` | Parallel LLM — Interpersonal function |
-| `organization_feedback` | Parallel LLM — Organization function |
-| `merge_feedback` | Merge, sort by severity, cap at 12 annotations |
+| `fixed_language_points_feedback` | LLM — exactly one annotation per fixed language point |
 | `validate_feedback` | Zod schema validation |
 | `repair_feedback` | One-shot JSON repair if validation fails |
+| `evaluate_seriousness` | Rubric-aligned seriousness ranking |
 | `attach_course_materials` | Attach mapped course material labels |
 | `return_feedback` | Return `FeedbackResponse` |
 
-Typical LLM calls: **3** parallel dimension nodes; **+1** if repair runs.
+Fixed language points (always covered): General-to-specific organization, Topic sentences, Theme–new information order, Nominalization, Sentence connection and conjunction use.
+
+Typical LLM calls: **1** fixed-language-points node; **+1** if repair runs.
 
 ### 1.3 Evaluation Framework
 

@@ -1,15 +1,26 @@
 import { Annotation as GraphAnnotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
 import { getCourseMaterialLabel } from "../../shared/courseMaterials.js";
+import {
+  FIXED_LANGUAGE_POINT_COUNT,
+  FIXED_LANGUAGE_POINT_IDS,
+  FIXED_LANGUAGE_POINTS,
+  formatFixedLanguagePointsForPrompt,
+  getFixedLanguagePoint,
+  matchFixedLanguagePointId,
+  type FixedLanguagePointId,
+} from "../../shared/fixedLanguagePoints.js";
 import type {
   Annotation,
   FeedbackResponse,
-  FunctionDimension,
   Paragraph,
-  Severity,
 } from "../../shared/schema.js";
 import { formatParagraphsForPrompt, parseEssay } from "./essayParser.js";
-import { callOpenAiForFeedback, callOpenAiForJson, annotationJsonSchema } from "./openaiClient.js";
+import {
+  annotationJsonSchema,
+  callOpenAiForFeedback,
+  callOpenAiForJson,
+} from "./openaiClient.js";
 import { buildPromptMessages, type PromptMessage } from "./promptBuilder.js";
 import { validateFeedbackResponse } from "./schemaValidator.js";
 import {
@@ -17,29 +28,25 @@ import {
   sortAnnotationsBySeriousness,
 } from "./seriousnessEvaluator.js";
 
-const FUNCTION_PROMPTS: Record<FunctionDimension, string> = {
-  content:
-    "Focus only on the Content Function. Evaluate knowledge building, definitions, concepts, process types, nominalization, and logical content development. Every annotation you return MUST have function set to content.",
-  interpersonal:
-    "Focus only on the Interpersonal Function. Evaluate academic stance, reliability of claims, source use, hedging/boosting, reporting verbs, tone, citation conventions, and formal academic vocabulary. Every annotation you return MUST have function set to interpersonal.",
-  organization:
-    "Focus only on the Organizational Function. Evaluate text structure, paragraph flow, transitions, cohesion, Theme/New ordering, clause structure, and punctuation for readability. Every annotation you return MUST have function set to organization.",
-};
+const FIXED_POINTS_PROMPT_BLOCK = `
+FIXED LANGUAGE POINTS (MANDATORY — EVERY SUBMISSION):
+You MUST return exactly ${FIXED_LANGUAGE_POINT_COUNT} annotations: one for EACH fixed language point below.
+Do NOT freely choose only the most obvious issues. Check every fixed point even when the draft is strong overall.
+If a point is handled well, return a strength (Strong/Good). If it is weak, return a weakness (Weak/Missing). If it is adequate but improvable, return average (Adequate/Room to improve).
 
-const ACCESSIBLE_COURSE_LANGUAGE_OVERRIDE = `
+${formatFixedLanguagePointsForPrompt()}
+
+Each annotation MUST include language_point_id set to the matching id above.
+Each annotation's function and level MUST match the required values for that language point.
+issue_type MUST start with Strong/Good, Weak/Missing, or Adequate/Room to improve, then the required issue_type label.
+
 STUDENT-FACING LANGUAGE (MANDATORY):
 - Write exclusively in English. Do NOT use Chinese or any other language.
-- Use LLED 200 course terms when they fit (Theme/New, nominalization, relational/material process, hedging, boosting, definition pattern, cohesion, interpersonal positioning, etc.).
+- Use LLED 200 course terms when they fit (Theme/New, nominalization, general-to-specific, topic sentence, cohesion, etc.).
 - Follow the term + plain English explanation pattern: name the concept, then explain it in this specific quote.
-- issue_type MUST start with Strong/Good (strength), Weak/Missing (weakness), or Adequate/Room to improve (average).
 - feedback is 1-2 short sentences; for strengths use revision_guidance exactly: Keep this pattern in your revision.
 - Use "you/your". Do not stack multiple terms in one sentence. Do not use terms without an English gloss.
 - citations MUST be an empty array []. Course materials are attached server-side.
-
-LANGUAGE-POINT COMMENTS (MANDATORY):
-- Return exactly 2 language-point comments for this function (not more).
-- Include a mix: at least one strength OR average, and at least one weakness OR average.
-- Each comment must name one specific course language point and anchor to a quote.
 
 ANNOTATION ANCHORING (MANDATORY):
 - evidence.quote MUST be copied verbatim from the paragraph text (exact substring).
@@ -47,133 +54,40 @@ ANNOTATION ANCHORING (MANDATORY):
 - Do NOT guess offsets; locate the quote first, then set char_start/char_end to its position.
 `;
 
-const DEFAULT_LANGUAGE_POINT_COUNT = 5;
-const MIN_LANGUAGE_POINT_COUNT = 4;
-const ANNOTATIONS_PER_DIMENSION = 2;
+const fixedPointAnnotationJsonSchema = {
+  ...annotationJsonSchema,
+  required: [...annotationJsonSchema.required, "language_point_id"],
+  properties: {
+    ...annotationJsonSchema.properties,
+    language_point_id: { enum: [...FIXED_LANGUAGE_POINT_IDS] },
+  },
+} as const;
 
-const STRENGTH_ISSUE_PATTERN = /^(Strong|Good|Effective|Clear)\b/i;
-const WEAKNESS_ISSUE_PATTERN = /^(Weak|Missing|Poor|Broken|Unclear|Insufficient)\b/i;
-const AVERAGE_ISSUE_PATTERN = /^(Adequate|Average|Room|Mixed|Moderate)\b/i;
-
-type LanguagePointQuality = "strength" | "weakness" | "average";
-
-function classifyLanguagePointQuality(item: Annotation): LanguagePointQuality {
-  if (STRENGTH_ISSUE_PATTERN.test(item.issue_type)) {
-    return "strength";
-  }
-  if (WEAKNESS_ISSUE_PATTERN.test(item.issue_type)) {
-    return "weakness";
-  }
-  if (AVERAGE_ISSUE_PATTERN.test(item.issue_type)) {
-    return "average";
-  }
-  if (
-    item.severity === "low" &&
-    /keep this pattern|works well|effective|clear|strong|appropriate/i.test(
-      `${item.feedback} ${item.revision_guidance}`,
-    )
-  ) {
-    return "strength";
-  }
-  if (item.severity === "high") {
-    return "weakness";
-  }
-  return "average";
-}
-
-function selectDefaultLanguagePoints(all: Annotation[]): Annotation[] {
-  if (all.length <= DEFAULT_LANGUAGE_POINT_COUNT) {
-    return all;
-  }
-
-  const picked: Annotation[] = [];
-  const used = new Set<Annotation>();
-
-  const pools: Record<LanguagePointQuality, Annotation[]> = {
-    strength: [],
-    weakness: [],
-    average: [],
-  };
-
-  for (const item of all) {
-    pools[classifyLanguagePointQuality(item)].push(item);
-  }
-
-  const pickFrom = (
-    pool: Annotation[],
-    preferNewFunction = true,
-  ): Annotation | null => {
-    const sorted = [...pool].sort(
-      (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
-    );
-    for (const item of sorted) {
-      if (used.has(item)) continue;
-      if (preferNewFunction && picked.some((entry) => entry.function === item.function)) {
-        continue;
-      }
-      return item;
-    }
-    for (const item of sorted) {
-      if (!used.has(item)) return item;
-    }
-    return null;
-  };
-
-  const add = (item: Annotation | null): void => {
-    if (!item || used.has(item)) return;
-    picked.push(item);
-    used.add(item);
-  };
-
-  for (const quality of ["strength", "weakness", "average"] as const) {
-    add(pickFrom(pools[quality]));
-  }
-
-  const functions: FunctionDimension[] = [
-    "content",
-    "interpersonal",
-    "organization",
-  ];
-  for (const fn of functions) {
-    if (picked.some((item) => item.function === fn)) continue;
-    const candidate = all.find((item) => item.function === fn && !used.has(item));
-    add(candidate ?? null);
-  }
-
-  const remaining = [...all]
-    .filter((item) => !used.has(item))
-    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
-
-  for (const item of remaining) {
-    if (picked.length >= DEFAULT_LANGUAGE_POINT_COUNT) break;
-    add(item);
-  }
-
-  return picked.slice(0, DEFAULT_LANGUAGE_POINT_COUNT);
-}
-
-const SEVERITY_RANK: Record<Severity, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-const dimensionFeedbackJsonSchema = {
+const fixedLanguagePointsFeedbackJsonSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "annotations",
-    "summary",
-    "priority_issues",
-    "next_steps",
-    "reflection_questions",
-  ],
+  required: ["annotations", "overall_feedback"],
   properties: {
-    annotations: { type: "array", items: annotationJsonSchema },
-    summary: { type: "string" },
-    priority_issues: { type: "array", items: { type: "string" } },
-    next_steps: { type: "array", items: { type: "string" } },
-    reflection_questions: { type: "array", items: { type: "string" } },
+    annotations: {
+      type: "array",
+      items: fixedPointAnnotationJsonSchema,
+    },
+    overall_feedback: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "summary",
+        "priority_issues",
+        "next_steps",
+        "reflection_questions",
+      ],
+      properties: {
+        summary: { type: "string" },
+        priority_issues: { type: "array", items: { type: "string" } },
+        next_steps: { type: "array", items: { type: "string" } },
+        reflection_questions: { type: "array", items: { type: "string" } },
+      },
+    },
   },
 } as const;
 
@@ -199,17 +113,22 @@ const annotationSchema = z.object({
   feedback: z.string(),
   revision_guidance: z.string(),
   citations: z.array(citationSchema),
+  language_point_id: z.enum(FIXED_LANGUAGE_POINT_IDS).optional(),
 });
 
-const dimensionFeedbackSchema = z.object({
+const fixedLanguagePointsFeedbackSchema = z.object({
   annotations: z.array(annotationSchema),
-  summary: z.string(),
-  priority_issues: z.array(z.string()),
-  next_steps: z.array(z.string()),
-  reflection_questions: z.array(z.string()),
+  overall_feedback: z.object({
+    summary: z.string(),
+    priority_issues: z.array(z.string()),
+    next_steps: z.array(z.string()),
+    reflection_questions: z.array(z.string()),
+  }),
 });
 
-type DimensionFeedback = z.infer<typeof dimensionFeedbackSchema>;
+type FixedLanguagePointsFeedback = z.infer<
+  typeof fixedLanguagePointsFeedbackSchema
+>;
 
 const FeedbackGraphState = GraphAnnotation.Root({
   essayText: GraphAnnotation<string>(),
@@ -220,18 +139,6 @@ const FeedbackGraphState = GraphAnnotation.Root({
   messages: GraphAnnotation<PromptMessage[]>({
     reducer: (_left, right) => right,
     default: () => [],
-  }),
-  contentFeedback: GraphAnnotation<DimensionFeedback | null>({
-    reducer: (_left, right) => right,
-    default: () => null,
-  }),
-  interpersonalFeedback: GraphAnnotation<DimensionFeedback | null>({
-    reducer: (_left, right) => right,
-    default: () => null,
-  }),
-  organizationFeedback: GraphAnnotation<DimensionFeedback | null>({
-    reducer: (_left, right) => right,
-    default: () => null,
   }),
   feedback: GraphAnnotation<FeedbackResponse | null>({
     reducer: (_left, right) => right,
@@ -258,9 +165,8 @@ async function prepareDescriptiveReportContext(
   return { paragraphs, messages };
 }
 
-function buildDimensionMessages(
+function buildFixedLanguagePointsMessages(
   baseMessages: PromptMessage[],
-  dimension: FunctionDimension,
 ): PromptMessage[] {
   const [systemMessage, userMessage] = baseMessages;
   if (!systemMessage || !userMessage) {
@@ -272,18 +178,15 @@ function buildDimensionMessages(
       role: "system",
       content: `${systemMessage.content}
 
-LANGGRAPH DIMENSION NODE OVERRIDE:
-${FUNCTION_PROMPTS[dimension]}
-${ACCESSIBLE_COURSE_LANGUAGE_OVERRIDE}
-Return ONLY the dimension feedback object required by the active JSON schema:
-- annotations
-- summary
-- priority_issues
-- next_steps
-- reflection_questions
+LANGGRAPH FIXED LANGUAGE POINTS OVERRIDE:
+${FIXED_POINTS_PROMPT_BLOCK}
 
-Do NOT return the full top-level FeedbackResponse in this node.
-Return exactly 2 language-point comments for this function (mix of strength, weakness, and/or average).`,
+Return ONLY this object:
+- annotations: exactly ${FIXED_LANGUAGE_POINT_COUNT} items, one per fixed language point
+- overall_feedback: summary, priority_issues, next_steps, reflection_questions
+
+overall_feedback.summary should briefly note strengths and priorities across the fixed language points.
+Do NOT return submission_id, created_at, or essay in this node.`,
     },
     {
       role: "user",
@@ -292,102 +195,109 @@ Return exactly 2 language-point comments for this function (mix of strength, wea
   ];
 }
 
-async function generateDimensionFeedback(
-  state: FeedbackGraphStateType,
-  dimension: FunctionDimension,
-): Promise<DimensionFeedback> {
-  const raw = await callOpenAiForJson(
-    buildDimensionMessages(state.messages, dimension),
-    `${dimension}_feedback`,
-    dimensionFeedbackJsonSchema,
-  );
-  const parsed = dimensionFeedbackSchema.parse(raw);
-
-  return {
-    ...parsed,
-    annotations: parsed.annotations
-      .filter((item) => item.function === dimension)
-      .slice(0, ANNOTATIONS_PER_DIMENSION) as Annotation[],
-  };
-}
-
-async function generateContentFeedback(
-  state: FeedbackGraphStateType,
-): Promise<FeedbackGraphUpdate> {
-  return { contentFeedback: await generateDimensionFeedback(state, "content") };
-}
-
-async function generateInterpersonalFeedback(
-  state: FeedbackGraphStateType,
-): Promise<FeedbackGraphUpdate> {
-  return {
-    interpersonalFeedback: await generateDimensionFeedback(state, "interpersonal"),
-  };
-}
-
-async function generateOrganizationFeedback(
-  state: FeedbackGraphStateType,
-): Promise<FeedbackGraphUpdate> {
-  return {
-    organizationFeedback: await generateDimensionFeedback(state, "organization"),
-  };
-}
-
-function requireDimensionFeedback(
-  value: DimensionFeedback | null,
-  label: FunctionDimension,
-): DimensionFeedback {
-  if (!value) {
-    throw new Error(`Missing ${label} feedback from LangGraph branch.`);
+function resolveLanguagePointId(
+  item: z.infer<typeof annotationSchema>,
+): FixedLanguagePointId | null {
+  if (item.language_point_id) {
+    return item.language_point_id;
   }
-  return value;
+  const fromIssueType = matchFixedLanguagePointId(item.issue_type);
+  if (fromIssueType) return fromIssueType;
+  return matchFixedLanguagePointId(
+    `${item.feedback} ${item.evidence.reason} ${item.revision_guidance}`,
+  );
+}
+
+function normalizeFixedPointAnnotation(
+  item: z.infer<typeof annotationSchema>,
+  pointId: FixedLanguagePointId,
+  id: number,
+): Annotation {
+  const point = getFixedLanguagePoint(pointId);
+  const qualityPrefixMatch = item.issue_type.match(
+    /^(Strong|Good|Effective|Clear|Weak|Missing|Poor|Broken|Unclear|Insufficient|Adequate|Average|Room to improve|Mixed|Moderate)\b/i,
+  );
+  const qualityPrefix = qualityPrefixMatch?.[0] ?? "Adequate";
+  const issueType = `${qualityPrefix} ${point.issueTypeLabel}`;
+
+  return {
+    id,
+    paragraph_id: item.paragraph_id,
+    char_start: item.char_start,
+    char_end: item.char_end,
+    function: point.function,
+    level: point.level,
+    issue_type: issueType,
+    severity: item.severity,
+    evidence: item.evidence,
+    feedback: item.feedback,
+    revision_guidance: item.revision_guidance,
+    citations: [],
+  };
+}
+
+function selectFixedLanguagePointAnnotations(
+  candidates: Array<z.infer<typeof annotationSchema>>,
+): Annotation[] {
+  const byPoint = new Map<FixedLanguagePointId, z.infer<typeof annotationSchema>>();
+
+  for (const item of candidates) {
+    const pointId = resolveLanguagePointId(item);
+    if (!pointId || byPoint.has(pointId)) continue;
+    byPoint.set(pointId, item);
+  }
+
+  // Fallback: assign remaining candidates to any still-missing fixed points.
+  const used = new Set(byPoint.values());
+  const unused = candidates.filter((item) => !used.has(item));
+
+  for (const point of FIXED_LANGUAGE_POINTS) {
+    if (byPoint.has(point.id)) continue;
+    const fallback = unused.shift();
+    if (fallback) {
+      byPoint.set(point.id, fallback);
+    }
+  }
+
+  return FIXED_LANGUAGE_POINTS.flatMap((point, index) => {
+    const item = byPoint.get(point.id);
+    if (!item) return [];
+    return [normalizeFixedPointAnnotation(item, point.id, index + 1)];
+  });
 }
 
 function takeNonEmpty(items: string[], limit: number): string[] {
   return items.map((item) => item.trim()).filter(Boolean).slice(0, limit);
 }
 
-function mergeFeedbackAnnotations(state: FeedbackGraphStateType): FeedbackGraphUpdate {
-  const content = requireDimensionFeedback(state.contentFeedback, "content");
-  const interpersonal = requireDimensionFeedback(
-    state.interpersonalFeedback,
-    "interpersonal",
+async function generateFixedLanguagePointsFeedback(
+  state: FeedbackGraphStateType,
+): Promise<FeedbackGraphUpdate> {
+  const raw = await callOpenAiForJson(
+    buildFixedLanguagePointsMessages(state.messages),
+    "fixed_language_points_feedback",
+    fixedLanguagePointsFeedbackJsonSchema,
   );
-  const organization = requireDimensionFeedback(
-    state.organizationFeedback,
-    "organization",
-  );
-  const dimensionFeedback = [content, interpersonal, organization];
-  const candidateAnnotations = dimensionFeedback
-    .flatMap((item) => item.annotations)
-    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
-  const selected = selectDefaultLanguagePoints(candidateAnnotations);
-  const annotations =
-    selected.length >= MIN_LANGUAGE_POINT_COUNT
-      ? selected
-      : candidateAnnotations.slice(0, DEFAULT_LANGUAGE_POINT_COUNT);
-  const normalizedAnnotations = annotations.map((item, index) => ({
-    ...item,
-    id: index + 1,
-  }));
+  const parsed = fixedLanguagePointsFeedbackSchema.parse(raw);
+  const annotations = selectFixedLanguagePointAnnotations(parsed.annotations);
+
+  if (annotations.length < FIXED_LANGUAGE_POINT_COUNT) {
+    throw new Error(
+      `Fixed language-point coverage incomplete: expected ${FIXED_LANGUAGE_POINT_COUNT}, got ${annotations.length}.`,
+    );
+  }
 
   const feedback: FeedbackResponse = {
     submission_id: null,
     created_at: null,
     essay: { paragraphs: state.paragraphs },
-    annotations: normalizedAnnotations,
+    annotations,
     overall_feedback: {
-      summary: dimensionFeedback.map((item) => item.summary).join(" "),
-      priority_issues: takeNonEmpty(
-        dimensionFeedback.flatMap((item) => item.priority_issues),
-        4,
-      ),
-      next_steps: takeNonEmpty(
-        dimensionFeedback.flatMap((item) => item.next_steps),
-        4,
-      ),
+      summary: parsed.overall_feedback.summary,
+      priority_issues: takeNonEmpty(parsed.overall_feedback.priority_issues, 4),
+      next_steps: takeNonEmpty(parsed.overall_feedback.next_steps, 4),
       reflection_questions: takeNonEmpty(
-        dimensionFeedback.flatMap((item) => item.reflection_questions),
+        parsed.overall_feedback.reflection_questions,
         4,
       ),
     },
@@ -448,7 +358,7 @@ async function repairFeedbackOnce(
     {
       role: "system",
       content:
-        "You repair invalid LLED 200 feedback JSON. Return only valid JSON matching the required schema. Do not add markdown or explanations.",
+        "You repair invalid LLED 200 feedback JSON. Return only valid JSON matching the required schema. Do not add markdown or explanations. Keep exactly one annotation for each fixed language point: General-to-specific organization, Topic sentences, Theme–new information order, Nominalization, and Sentence connection and conjunction use.",
     },
     {
       role: "user",
@@ -463,8 +373,25 @@ ${JSON.stringify(state.feedback)}`,
     },
   ]);
 
+  const repaired = raw as FeedbackResponse;
+  const annotations = selectFixedLanguagePointAnnotations(
+    repaired.annotations.map((item) => ({
+      ...item,
+      language_point_id: matchFixedLanguagePointId(item.issue_type) ?? undefined,
+    })),
+  );
+
   return {
-    feedback: raw as FeedbackResponse,
+    feedback: {
+      ...repaired,
+      annotations:
+        annotations.length === FIXED_LANGUAGE_POINT_COUNT
+          ? annotations
+          : repaired.annotations.slice(0, FIXED_LANGUAGE_POINT_COUNT),
+      essay: { paragraphs: state.paragraphs },
+      submission_id: null,
+      created_at: null,
+    },
     validationError: null,
     repairAttempts: state.repairAttempts + 1,
   };
@@ -501,24 +428,15 @@ function returnFeedback(state: FeedbackGraphStateType): FeedbackGraphUpdate {
 
 const feedbackGraph = new StateGraph(FeedbackGraphState)
   .addNode("prepare_context", prepareDescriptiveReportContext)
-  .addNode("content_feedback", generateContentFeedback)
-  .addNode("interpersonal_feedback", generateInterpersonalFeedback)
-  .addNode("organization_feedback", generateOrganizationFeedback)
-  .addNode("merge_feedback", mergeFeedbackAnnotations)
+  .addNode("fixed_language_points_feedback", generateFixedLanguagePointsFeedback)
   .addNode("validate_feedback", validateMergedFeedback)
   .addNode("repair_feedback", repairFeedbackOnce)
   .addNode("evaluate_seriousness", evaluateSeriousness)
   .addNode("attach_course_materials", attachCourseMaterials)
   .addNode("return_feedback", returnFeedback)
   .addEdge(START, "prepare_context")
-  .addEdge("prepare_context", "content_feedback")
-  .addEdge("prepare_context", "interpersonal_feedback")
-  .addEdge("prepare_context", "organization_feedback")
-  .addEdge(
-    ["content_feedback", "interpersonal_feedback", "organization_feedback"],
-    "merge_feedback",
-  )
-  .addEdge("merge_feedback", "validate_feedback")
+  .addEdge("prepare_context", "fixed_language_points_feedback")
+  .addEdge("fixed_language_points_feedback", "validate_feedback")
   .addConditionalEdges("validate_feedback", routeAfterValidation, [
     "repair_feedback",
     "evaluate_seriousness",

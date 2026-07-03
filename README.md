@@ -11,9 +11,14 @@ The app accepts pasted text or uploaded files, sends the essay to an OpenAI-back
 - Paste or upload essay drafts (`.txt`, `.md`, `.doc`, `.docx`, `.pdf`)
 - Extract text from uploaded documents
 - Generate structured feedback aligned with the Academic Writing Matrix
+- Automatically cover five fixed language points on every submission:
+  - General-to-specific organization
+  - Topic sentences
+  - Theme–new information order
+  - Nominalization
+  - Sentence connection and conjunction use
 - Categorize annotations by function and level:
   - Content
-  - Interpersonal
   - Organization
   - Text / Section / Clause & Word
 - Validate feedback against a strict JSON schema
@@ -150,7 +155,7 @@ Use the run-lled-mvp skill to start this project locally.
 - `.env` is ignored so real keys are not committed.
 - `.cursor/rules/` is ignored so local Cursor rules are not committed.
 - `.cursor/skills/` is intentionally kept shareable so other Cursor users can run the project with the provided skill.
-- Feedback generation currently uses a LangGraph workflow with focused feedback branches and schema validation. This can call the model multiple times per submission.
+- Feedback generation uses a LangGraph workflow that requires one comment for each fixed language point, then validates the structured response.
 
 ## License and Usage Notice
 
