@@ -1,5 +1,7 @@
 # LLED200CourseAgent
 
+> **Important Notice:** This project is proprietary. No part of this project, including its code, prompts, workflows, documentation, deployment design, feedback logic, or demo materials, may be copied, modified, deployed, redistributed, integrated into another project, or represented as another person's contribution without prior written permission from the author.
+
 An MVP web app for generating structured formative feedback on LLED 200 Descriptive Report drafts.
 
 The app accepts pasted text or uploaded files, sends the essay to an OpenAI-backed feedback pipeline, validates the structured response, and renders paragraph-level annotations with suggested course materials.
@@ -149,3 +151,25 @@ Use the run-lled-mvp skill to start this project locally.
 - `.cursor/rules/` is ignored so local Cursor rules are not committed.
 - `.cursor/skills/` is intentionally kept shareable so other Cursor users can run the project with the provided skill.
 - Feedback generation currently uses a LangGraph workflow with focused feedback branches and schema validation. This can call the model multiple times per submission.
+
+## License and Usage Notice
+
+This project is proprietary. All rights are reserved.
+
+The source code, prompts, workflows, documentation, deployment design, feedback logic, UI design, demo materials, and related project materials in this repository may not be copied, modified, redistributed, deployed, integrated into another project, or used in any academic, institutional, commercial, or collaborative setting without prior written permission from the author.
+
+Any use of this project must receive explicit written approval from the author.
+
+Unauthorized use, reproduction, redistribution, deployment, or representation of this work as another person's contribution is strictly prohibited.
+
+## License Change Notice
+
+This repository was previously made available under GPL-3.0.
+
+Effective from July 2026, all future versions, updates, source code, prompts, workflows, documentation, deployment materials, feedback logic, UI design, demo materials, and project-related materials are proprietary and all rights are reserved.
+
+No permission is granted to copy, modify, redistribute, deploy, integrate, or reuse any future version of this project without prior written approval from the author.
+
+This license change applies to all future commits, updates, documentation, workflows, prompts, deployment-related materials, and project-related implementation.
+
+Any prior public availability of this repository does not grant permission to represent this project, its workflow, its feedback logic, its implementation, or its deployment structure as another person's contribution.
