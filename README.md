@@ -1,3 +1,6 @@
+<img width="1270" height="593" alt="3bfe5645bc88fff63ab8d7ba728e2673" src="https://github.com/user-attachments/assets/f00e8249-6539-485c-acc6-abcbd6af4b21" />
+<img width="1271" height="578" alt="f3c2e519e61498571c3d8b9e38fba515" src="https://github.com/user-attachments/assets/5001413e-8112-4e42-84f0-742a315848c2" />
+
 # LLED200CourseAgent
 
 > **Important Notice:** This project is proprietary. No part of this project, including its code, prompts, workflows, documentation, deployment design, feedback logic, or demo materials, may be copied, modified, deployed, redistributed, integrated into another project, or represented as another person's contribution without prior written permission from the author.
