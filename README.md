@@ -3,7 +3,7 @@
 <img width="784" height="867" alt="LLED-Feedback-Agent" src="https://github.com/user-attachments/assets/5c9e0f06-e072-4ab0-9633-9562602a1890" />
 
 
-# LLED200CourseAgent
+# LLED200Course Feedback Agent
 
 > **Important Notice:** This project is proprietary. No part of this project, including its code, prompts, workflows, documentation, deployment design, feedback logic, or demo materials, may be copied, modified, deployed, redistributed, integrated into another project, or represented as another person's contribution without prior written permission from the author.
 
