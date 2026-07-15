@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "node .cursor/hooks/run-pressure-test.mjs",
+        "timeout": 30
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/run-pressure-test.mjs",
+        "timeout": 30
+      }
+    ]
+  }
+}
