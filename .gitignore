@@ -1,11 +1,6 @@
 node_modules/
 .env
-.cursor/*
-!.cursor/hooks.json
-!.cursor/hooks/
-!.cursor/hooks/**
-.pressure-test.lock
-pressure-test.hook.log
+.cursor/
 *.log
 .DS_Store
 dist/

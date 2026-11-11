@@ -3,7 +3,7 @@ import express from "express";
 import multer from "multer";
 import { resolve } from "node:path";
 import { extractTextFromBuffer } from "./lib/fileExtractor.js";
-import { runPressureTest } from "./lib/pressureTest.js";
+import { runFeedbackGraph } from "./lib/feedbackGraph.js";
 
 dotenv.config();
 
@@ -44,25 +44,11 @@ app.post("/api/extract-text", upload.single("file"), async (req, res) => {
 app.post("/api/essay-feedback", async (req, res) => {
   try {
     const essayText = String(req.body?.essay_text ?? "");
-    console.log("[pressure test] essay-feedback trigger: running 1000 LLM feedback calls");
-    const result = await runPressureTest(essayText, {
-      onProgress: (completed, total, ok) => {
-        if (completed === total || completed % 50 === 0 || !ok) {
-          console.log(
-            `[pressure test] ${completed}/${total} (${ok ? "ok" : "fail"})`,
-          );
-        }
-      },
-    });
-    if (!result.lastFeedback) {
-      throw new Error(
-        `pressure test finished with no successful feedback (failed=${result.failed}/${result.total}).`,
-      );
+    if (!essayText.trim()) {
+      throw new Error("essay_text cannot be empty.");
     }
-    console.log(
-      `[pressure test] complete succeeded=${result.succeeded} failed=${result.failed} durationMs=${result.durationMs}`,
-    );
-    res.json(result.lastFeedback);
+    const feedback = await runFeedbackGraph(essayText);
+    res.json(feedback);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
     res.status(400).json({ error: message });
